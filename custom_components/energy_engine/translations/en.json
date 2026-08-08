@@ -1,0 +1,61 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Energy Engine",
+        "description": "Point to the existing entities that report your grid import and export energy. This is the single, shared Energy Profile used by every Scenario you add afterwards.",
+        "data": {
+          "import_entity_id": "Grid import energy entity",
+          "export_entity_id": "Grid export energy entity"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "menu_options": {
+          "add_scenario": "Add a Scenario",
+          "remove_scenario": "Remove a Scenario"
+        }
+      },
+      "add_scenario": {
+        "title": "Add a Scenario",
+        "description": "A Scenario prices the shared Energy Profile against one Tariff Provider. Point to the existing entities that report its import rate, export rate, and standing charge.",
+        "data": {
+          "name": "Scenario name",
+          "import_rate_entity_id": "Import rate entity",
+          "export_rate_entity_id": "Export rate entity",
+          "standing_charge_entity_id": "Standing charge entity"
+        }
+      },
+      "remove_scenario": {
+        "title": "Remove a Scenario",
+        "data": {
+          "name": "Scenario to remove"
+        }
+      }
+    },
+    "error": {
+      "name_exists": "A Scenario with this name already exists."
+    }
+  },
+  "services": {
+    "run_scenario": {
+      "name": "Run Scenario",
+      "description": "Prices the shared Energy Profile against one Scenario's Tariff Provider over an explicit date range.",
+      "fields": {
+        "start_date": { "name": "Start date", "description": "First day to include." },
+        "end_date": { "name": "End date", "description": "Last day to include." }
+      }
+    },
+    "run_comparison": {
+      "name": "Run Comparison",
+      "description": "Targets multiple Scenarios at once and prices each over the same explicit date range - an ad hoc Comparison.",
+      "fields": {
+        "start_date": { "name": "Start date", "description": "First day to include." },
+        "end_date": { "name": "End date", "description": "Last day to include." }
+      }
+    }
+  }
+}

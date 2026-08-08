@@ -1,0 +1,12 @@
+{
+  "domain": "energy_engine",
+  "name": "Energy Engine",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["recorder"],
+  "documentation": "https://github.com/Sandbox6168/energy-engine",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/Sandbox6168/energy-engine/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

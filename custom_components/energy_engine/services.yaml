@@ -1,0 +1,29 @@
+run_scenario:
+  target:
+    entity:
+      integration: energy_engine
+      domain: sensor
+  fields:
+    start_date:
+      required: true
+      selector:
+        date: {}
+    end_date:
+      required: true
+      selector:
+        date: {}
+
+run_comparison:
+  target:
+    entity:
+      integration: energy_engine
+      domain: sensor
+  fields:
+    start_date:
+      required: true
+      selector:
+        date: {}
+    end_date:
+      required: true
+      selector:
+        date: {}
