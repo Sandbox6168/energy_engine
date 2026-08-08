@@ -15,8 +15,8 @@ _Avoid_: usage timeline, usage data
 **Data Source** _(plugin category)_:
 Produces an initial Energy Profile for a date range. v1 scope: net grid import/export only — solar generation and battery charge/discharge are not modelled as separate series yet.
 
-**Transform**:
-A pure function `(Energy Profile, Tariff Provider) -> Energy Profile`. The seam where future behavioural changes (e.g. shifting a dishwasher run, an optimiser's decisions) plug in — taking the Tariff Provider as input so a Transform can make tariff-aware decisions (e.g. "move this load to the cheapest period"). v1 ships with zero real Transforms (a Simulation with no Transforms is a straight replay of the source Energy Profile) — but the pipeline is shaped to carry them from the start.
+**Transform** _(plugin category)_:
+Takes an Energy Profile (and the Scenario's Tariff Provider, for tariff-aware decisions) and returns a new Energy Profile — e.g. moving a dishwasher's load to a different Settlement Period, or shifting when a battery imports/exports. Like every plugin, a Transform never mutates the Energy Profile it's given; it returns a new one. The seam where future behavioural changes (an optimiser's decisions, a manual "what-if I'd run this at 2am" override) plug in. v1 ships with zero real Transforms (a Simulation with no Transforms is a straight replay of the source Energy Profile) — but the pipeline is shaped to carry them from the start.
 
 **Tariff Provider** _(plugin category)_:
 Supplies the import rate, export rate, and standing charge applicable to a given Settlement Period. Covers Agile, Go, and Fixed tariffs. Import and export are queried as distinct underlying products/tariff codes, not two fields of one lookup.
@@ -43,6 +43,7 @@ Would decide when a schedulable load (dishwasher, immersion heater, EV charger �
 
 ## Notes
 
+- **Plugins are immutable — input in, new data out, never a mutation.** Applies across every plugin category (Data Source, Transform, Tariff Provider, and later Battery/Device Optimisers): none of them modify the Energy Profile or other data they're handed, they only ever return a new value derived from it. This is what makes chaining Transforms in a Simulation safe to reason about, and is why the Simulation itself can be a pure function — it's composing pure, side-effect-free pieces.
 - **The core Simulation is a pure function.** No I/O, no HA dependency, deterministic given its inputs (Energy Profile, Transforms, Tariff Provider). How a Simulation Result gets surfaced — a service-call response, a persisted "last result" entity, both — is entirely a Home Assistant-layer presentation decision, not something the core knows or cares about.
 - The engine must remain usable without Home Assistant. Home Assistant is a Data Source plugin implementation plus a UI/dashboard layer (a HACS custom_component **integration**, not a Supervisor add-on) — never a dependency of the core engine.
 - **The core is provenance-agnostic by design.** Scenario, Cost Calculator, Comparison, etc. operate purely on the abstract Data Source / Tariff Provider contracts (usage and rates bucketed into Settlement Periods) and never know or care whether the numbers came from a live HA entity, an Octopus API call, or a CSV. Correctness questions like "should this return real historical rates for a past date" are properties of a *specific plugin's contract*, not the core — a Tariff Provider that claims to answer for a past Settlement Period must answer truthfully for that period, whatever its backing source. Re-bucketing raw source data (5-minute, hourly, whatever) into Settlement Periods is a plugin's responsibility, not the core's.
