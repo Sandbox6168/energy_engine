@@ -55,6 +55,15 @@ async def async_fetch_settlement_values(
 
     old_rows = await _query(hass, entity_id, start, cutoff, "hour") if cutoff > start else []
     recent_rows = await _query(hass, entity_id, cutoff, end, "5minute") if end > cutoff else []
+    _LOGGER.debug(
+        "%s: fetched %d hourly row(s) for %s..%s and %d 5-minute row(s) for %s..%s "
+        "(kind=%s); hourly range=%s recent range=%s",
+        entity_id, len(old_rows), start.isoformat(), cutoff.isoformat(),
+        len(recent_rows), cutoff.isoformat(), end.isoformat(), kind.value,
+        [_row_start(r).isoformat() for r in old_rows[:3]] + (["..."] if len(old_rows) > 3 else []),
+        [_row_start(r).isoformat() for r in recent_rows[:3]]
+        + (["..."] if len(recent_rows) > 3 else []),
+    )
 
     values: dict[SettlementPeriod, float] = {}
     degraded = False
@@ -70,9 +79,12 @@ async def async_fetch_settlement_values(
             value = _reduce(recent_rows, period_start, timedelta(minutes=30), kind)
 
         if value is None:
+            bucket_rows = old_rows if period_start < cutoff else recent_rows
             _LOGGER.warning(
-                "No recorder data for %s covering the Settlement Period starting %s",
+                "No recorder data for %s covering the Settlement Period starting %s; "
+                "nearest fetched row(s): %s",
                 entity_id, period_start.isoformat(),
+                [(r.get("start"), r.get("mean"), r.get("sum")) for r in bucket_rows[:5]],
             )
             raise MissingStatisticsError(
                 f"No recorder data for {entity_id} covering the Settlement Period "
