@@ -1,0 +1,7 @@
+# HA Tariff Provider reads only from existing HA entities, never calls Octopus's API directly
+
+The HA-side Tariff Provider (both for the live current-rate sensor and for historical Comparisons) reads rate data exclusively from entities/statistics already present in Home Assistant — e.g. the community Octopus Energy integration's sensors — rather than the energy-engine integration holding its own Octopus API credentials and calling the API directly.
+
+**Why**: avoids duplicating API clients and credential storage for something another already-installed HA integration typically provides; keeps the HA integration a strict consumer of HA's own data model, consistent with the "core is provenance-agnostic, HA plugins bind to HA entities" principle.
+
+**Trade-off accepted**: Home Assistant's own history retention limits historical rate precision — 5-minute short-term statistics are purged after ~10 days, and long-term statistics beyond that are hourly aggregates only (no native 30-minute bucket). Comparisons over date ranges older than ~10 days will therefore use hourly-resolution (averaged) rates rather than true per-Settlement-Period historical rates, unless a future revision reconsiders this. Considered and rejected: a direct-API Tariff Provider plugin with its own Octopus account credentials, which would preserve full historical precision but reintroduces credential management and duplicate API polling.
