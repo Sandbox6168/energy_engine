@@ -6,6 +6,7 @@ Comparison, per CONTEXT.md (Comparison is on-demand, never a standing config).""
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 from decimal import Decimal
 
@@ -33,6 +34,8 @@ from .const import (
 from .core import run_simulation
 from .data_source import async_build_data_source
 from .tariff_provider import async_build_tariff_provider
+
+_LOGGER = logging.getLogger(__name__)
 
 RUN_SCHEMA = cv.make_entity_service_schema(
     {
@@ -72,24 +75,40 @@ class ScenarioResultSensor(SensorEntity):
         self._attr_extra_state_attributes: dict = {}
 
     async def async_handle_run(self, start_date: date, end_date: date) -> ServiceResponse:
-        data_source = await async_build_data_source(
-            self._hass,
-            self._entry.data[CONF_IMPORT_ENTITY],
-            self._entry.data[CONF_EXPORT_ENTITY],
-            start_date,
-            end_date,
+        _LOGGER.debug(
+            "Running Scenario %r for %s to %s", self._scenario[CONF_SCENARIO_NAME],
+            start_date, end_date,
         )
-        tariff_provider = await async_build_tariff_provider(
-            self._hass,
-            self._scenario[CONF_IMPORT_RATE_ENTITY],
-            self._scenario[CONF_EXPORT_RATE_ENTITY],
-            self._scenario[CONF_STANDING_CHARGE_ENTITY],
-            start_date,
-            end_date,
-        )
+        try:
+            data_source = await async_build_data_source(
+                self._hass,
+                self._entry.data[CONF_IMPORT_ENTITY],
+                self._entry.data[CONF_EXPORT_ENTITY],
+                start_date,
+                end_date,
+            )
+            tariff_provider = await async_build_tariff_provider(
+                self._hass,
+                self._scenario[CONF_IMPORT_RATE_ENTITY],
+                self._scenario[CONF_EXPORT_RATE_ENTITY],
+                self._scenario[CONF_STANDING_CHARGE_ENTITY],
+                start_date,
+                end_date,
+            )
+        except Exception:
+            _LOGGER.exception(
+                "Failed to run Scenario %r for %s to %s",
+                self._scenario[CONF_SCENARIO_NAME], start_date, end_date,
+            )
+            raise
 
         profile = data_source.get_energy_profile(start_date, end_date)
         caveats = [c for c in (data_source.precision_caveat, tariff_provider.precision_caveat) if c]
+        if caveats:
+            _LOGGER.debug(
+                "Scenario %r run has precision caveats: %s",
+                self._scenario[CONF_SCENARIO_NAME], " ".join(caveats),
+            )
 
         result = run_simulation(
             profile,
@@ -100,6 +119,11 @@ class ScenarioResultSensor(SensorEntity):
 
         import_kwh = sum(value.import_kwh for value in result.profile.values.values())
         export_kwh = sum(value.export_kwh for value in result.profile.values.values())
+
+        _LOGGER.debug(
+            "Scenario %r result: total_cost=%s import_kwh=%s export_kwh=%s",
+            self._scenario[CONF_SCENARIO_NAME], result.total_cost, import_kwh, export_kwh,
+        )
 
         self._attr_native_value = result.total_cost
         self._attr_extra_state_attributes = {

@@ -3,6 +3,7 @@ standing charge from HA's own recorder statistics rather than calling Octopus's 
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
@@ -10,6 +11,8 @@ from homeassistant.core import HomeAssistant
 
 from .core import SettlementPeriod
 from .recorder_utils import StatKind, async_fetch_settlement_values
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class HassTariffProvider:
@@ -63,6 +66,10 @@ async def async_build_tariff_provider(
         caveat = (
             "Rates priced from hourly-averaged data for Settlement Periods older than "
             "HA's short-term statistics retention window, not true half-hourly rates."
+        )
+        _LOGGER.debug(
+            "Tariff Provider for %s/%s/%s degraded to hourly statistics for part of %s to %s",
+            import_rate_entity_id, export_rate_entity_id, standing_charge_entity_id, start, end,
         )
 
     return HassTariffProvider(

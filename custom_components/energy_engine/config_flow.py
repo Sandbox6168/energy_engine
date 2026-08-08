@@ -3,6 +3,8 @@ Profile); the options flow manages the named Scenarios layered on top of it."""
 
 from __future__ import annotations
 
+import logging
+
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
@@ -18,6 +20,8 @@ from .const import (
     CONF_STANDING_CHARGE_ENTITY,
     DOMAIN,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _entity_selector(device_class: str | None = None) -> selector.EntitySelector:
@@ -53,6 +57,7 @@ class EnergyEngineConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
         if user_input is not None:
+            _LOGGER.debug("Creating Energy Engine config entry: %s", user_input)
             return self.async_create_entry(
                 title="Energy Engine", data=user_input, options={CONF_SCENARIOS: []}
             )
@@ -87,9 +92,13 @@ class EnergyEngineOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             scenarios = list(self._config_entry.options.get(CONF_SCENARIOS, []))
             if any(s[CONF_SCENARIO_NAME] == user_input[CONF_SCENARIO_NAME] for s in scenarios):
+                _LOGGER.debug(
+                    "Rejected duplicate Scenario name %r", user_input[CONF_SCENARIO_NAME]
+                )
                 errors["base"] = "name_exists"
             else:
                 scenarios.append(user_input)
+                _LOGGER.debug("Added Scenario %r", user_input[CONF_SCENARIO_NAME])
                 return self.async_create_entry(title="", data={CONF_SCENARIOS: scenarios})
 
         return self.async_show_form(
@@ -104,6 +113,7 @@ class EnergyEngineOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             remaining_name = user_input[CONF_SCENARIO_NAME]
             remaining = [s for s in scenarios if s[CONF_SCENARIO_NAME] != remaining_name]
+            _LOGGER.debug("Removed Scenario %r", remaining_name)
             return self.async_create_entry(title="", data={CONF_SCENARIOS: remaining})
 
         names = [s[CONF_SCENARIO_NAME] for s in scenarios]
