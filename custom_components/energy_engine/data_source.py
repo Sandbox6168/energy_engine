@@ -3,12 +3,15 @@ recorder statistics (ADR-0002) rather than polling a device or API directly."""
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, date, datetime, time, timedelta
 
 from homeassistant.core import HomeAssistant
 
 from .core import EnergyProfile, SettlementValue
 from .recorder_utils import StatKind, async_fetch_settlement_values
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class HassDataSource:
@@ -53,6 +56,10 @@ async def async_build_data_source(
         caveat = (
             "Usage priced from hourly-averaged data for Settlement Periods older than "
             "HA's short-term statistics retention window, not true half-hourly readings."
+        )
+        _LOGGER.debug(
+            "Data Source for %s/%s degraded to hourly statistics for part of %s to %s",
+            import_entity_id, export_entity_id, start, end,
         )
 
     return HassDataSource(EnergyProfile(values), caveat)

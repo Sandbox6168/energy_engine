@@ -9,6 +9,7 @@ before relying on this in production.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 
@@ -18,6 +19,8 @@ from homeassistant.core import HomeAssistant
 
 from .const import SHORT_TERM_STATS_RETENTION_DAYS
 from .core import SettlementPeriod
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class StatKind(Enum):
@@ -67,6 +70,10 @@ async def async_fetch_settlement_values(
             value = _reduce(recent_rows, period_start, timedelta(minutes=30), kind)
 
         if value is None:
+            _LOGGER.warning(
+                "No recorder data for %s covering the Settlement Period starting %s",
+                entity_id, period_start.isoformat(),
+            )
             raise MissingStatisticsError(
                 f"No recorder data for {entity_id} covering the Settlement Period "
                 f"starting {period_start.isoformat()}"
