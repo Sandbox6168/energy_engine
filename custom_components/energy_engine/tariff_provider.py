@@ -13,6 +13,7 @@ from .recorder_utils import (
     StatKind,
     async_fetch_daily_value_from_history,
     async_fetch_settlement_values,
+    clamp_to_completed_period,
 )
 
 
@@ -50,7 +51,9 @@ async def async_build_tariff_provider(
     end: date,
 ) -> HassTariffProvider:
     start_dt = datetime.combine(start, time.min, tzinfo=UTC)
-    end_dt = datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
+    end_dt = clamp_to_completed_period(
+        datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
+    )
 
     import_values, import_degraded = await async_fetch_settlement_values(
         hass, import_rate_entity_id, start_dt, end_dt, StatKind.INSTANTANEOUS

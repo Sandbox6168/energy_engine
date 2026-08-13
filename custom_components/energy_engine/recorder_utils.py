@@ -48,6 +48,21 @@ class MissingHistoryError(Exception):
     `MissingStatisticsError`, for values resolved from plain state history."""
 
 
+def clamp_to_completed_period(end_dt: datetime) -> datetime:
+    """Clamp `end_dt` so a request never reaches into the still-in-progress Settlement
+    Period.
+
+    Callers build `end_dt` from a calendar date (e.g. "today" -> tomorrow midnight),
+    which reaches past the present moment for any period that hasn't finished yet.
+    That period can never have data, so left unclamped every "today"/"this week" run
+    would fail with `MissingStatisticsError` until the day is over.
+    """
+    now = datetime.now(tz=UTC)
+    if end_dt <= now:
+        return end_dt
+    return now.replace(minute=0 if now.minute < 30 else 30, second=0, microsecond=0)
+
+
 async def async_fetch_settlement_values(
     hass: HomeAssistant,
     entity_id: str,

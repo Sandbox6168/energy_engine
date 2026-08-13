@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from homeassistant.core import HomeAssistant
 
 from .core import EnergyProfile, SettlementValue
-from .recorder_utils import StatKind, async_fetch_settlement_values
+from .recorder_utils import StatKind, async_fetch_settlement_values, clamp_to_completed_period
 
 
 class HassDataSource:
@@ -34,7 +34,9 @@ async def async_build_data_source(
     end: date,
 ) -> HassDataSource:
     start_dt = datetime.combine(start, time.min, tzinfo=UTC)
-    end_dt = datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
+    end_dt = clamp_to_completed_period(
+        datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
+    )
 
     import_values, import_degraded = await async_fetch_settlement_values(
         hass, import_entity_id, start_dt, end_dt, StatKind.CUMULATIVE
