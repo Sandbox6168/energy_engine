@@ -17,6 +17,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import device_info
 from .const import (
     ATTR_END_DATE,
     ATTR_START_DATE,
@@ -67,6 +68,7 @@ class ScenarioResultSensor(SensorEntity):
         self._scenario = scenario
         self._attr_name = scenario[CONF_SCENARIO_NAME]
         self._attr_unique_id = f"{entry.entry_id}_{scenario[CONF_SCENARIO_NAME]}"
+        self._attr_device_info = device_info(entry)
         self._attr_native_unit_of_measurement = hass.config.currency
         self._attr_native_value: Decimal | None = None
         self._attr_extra_state_attributes: dict = {}

@@ -13,7 +13,10 @@ from datetime import UTC, datetime, timedelta
 from enum import Enum
 
 from homeassistant.components.recorder import get_instance
-from homeassistant.components.recorder.statistics import statistics_during_period
+from homeassistant.components.recorder.statistics import (
+    list_statistic_ids,
+    statistics_during_period,
+)
 from homeassistant.core import HomeAssistant
 
 from .const import SHORT_TERM_STATS_RETENTION_DAYS
@@ -76,6 +79,25 @@ async def async_fetch_settlement_values(
         period_start += timedelta(minutes=30)
 
     return values, degraded
+
+
+async def async_entity_supports_statistics(
+    hass: HomeAssistant, entity_id: str, kind: StatKind
+) -> bool:
+    """Whether `entity_id` has any long-term statistics of the kind we'd need at all.
+
+    Distinct from a data *gap* (see `MissingStatisticsError`): an entity can be perfectly
+    available and still never have been tracked for statistics - e.g. a sensor with no
+    `state_class`. `_reduce`/`async_fetch_settlement_values` can't tell those two failure
+    modes apart on their own, since a bucket with zero rows looks the same either way.
+    """
+    recorder = get_instance(hass)
+    metadata = await recorder.async_add_executor_job(list_statistic_ids, hass, {entity_id})
+    if not metadata:
+        return False
+
+    info = metadata[0]
+    return bool(info["has_sum"]) if kind is StatKind.CUMULATIVE else bool(info["has_mean"])
 
 
 async def _query(

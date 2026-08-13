@@ -56,6 +56,14 @@
         "start_date": { "name": "Start date", "description": "First day to include." },
         "end_date": { "name": "End date", "description": "Last day to include." }
       }
+    },
+    "verify_entities": {
+      "name": "Verify Entities",
+      "description": "Checks every entity the Data Source and Scenarios rely on for an explicit date range, without running a Simulation - reports which ones are missing statistics entirely, which have gaps, and which are fine.",
+      "fields": {
+        "start_date": { "name": "Start date", "description": "First day to check." },
+        "end_date": { "name": "End date", "description": "Last day to check." }
+      }
     }
   }
 }

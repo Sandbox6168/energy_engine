@@ -27,3 +27,17 @@ run_comparison:
       required: true
       selector:
         date: {}
+
+verify_entities:
+  target:
+    device:
+      integration: energy_engine
+  fields:
+    start_date:
+      required: true
+      selector:
+        date: {}
+    end_date:
+      required: true
+      selector:
+        date: {}

@@ -17,6 +17,7 @@ CONF_STANDING_CHARGE_ENTITY = "standing_charge_entity_id"
 
 SERVICE_RUN_SCENARIO = "run_scenario"
 SERVICE_RUN_COMPARISON = "run_comparison"
+SERVICE_VERIFY_ENTITIES = "verify_entities"
 
 ATTR_START_DATE = "start_date"
 ATTR_END_DATE = "end_date"
