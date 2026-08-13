@@ -79,11 +79,11 @@ async def async_build_tariff_provider(
 
     try:
         standing_values, standing_degraded = await async_fetch_daily_value_from_history(
-            hass, standing_charge_entity_id, start, end
+            hass, standing_charge_entity_id, start, end + timedelta(days=1)
         )
     except MissingHistoryError:
         standing_values, fallback_issue = _fallback_standing_charge(
-            hass, standing_charge_entity_id, start, end
+            hass, standing_charge_entity_id, start, end + timedelta(days=1)
         )
         (warnings if standing_values else errors).append(fallback_issue)
     else:

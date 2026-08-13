@@ -106,7 +106,9 @@ async def _verify_one(
 ) -> EntityVerification:
     if kind is StatKind.HISTORY:
         try:
-            _, degraded = await async_fetch_daily_value_from_history(hass, entity_id, start, end)
+            _, degraded = await async_fetch_daily_value_from_history(
+                hass, entity_id, start, end + timedelta(days=1)
+            )
         except MissingHistoryError as err:
             return EntityVerification(entity_id, role, "error", str(err))
 
