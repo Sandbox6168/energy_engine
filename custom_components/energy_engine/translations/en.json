@@ -43,26 +43,35 @@
   "services": {
     "run_scenario": {
       "name": "Run Scenario",
-      "description": "Prices the shared Energy Profile against one Scenario's Tariff Provider over an explicit date range.",
+      "description": "Prices the shared Energy Profile against one Scenario's Tariff Provider over a chosen lookback period.",
       "fields": {
-        "start_date": { "name": "Start date", "description": "First day to include." },
-        "end_date": { "name": "End date", "description": "Last day to include." }
+        "period": { "name": "Lookback period", "description": "How far back to price, ending now." }
       }
     },
     "run_comparison": {
       "name": "Run Comparison",
-      "description": "Targets multiple Scenarios at once and prices each over the same explicit date range - an ad hoc Comparison.",
+      "description": "Targets multiple Scenarios at once and prices each over the same chosen lookback period - an ad hoc Comparison.",
       "fields": {
-        "start_date": { "name": "Start date", "description": "First day to include." },
-        "end_date": { "name": "End date", "description": "Last day to include." }
+        "period": { "name": "Lookback period", "description": "How far back to price, ending now." }
       }
     },
     "verify_entities": {
       "name": "Verify Entities",
-      "description": "Checks every entity the Data Source and Scenarios rely on for an explicit date range, without running a Simulation - reports which ones are missing statistics entirely, which have gaps, and which are fine.",
+      "description": "Checks every entity the Data Source and Scenarios rely on for a chosen lookback period, without running a Simulation - reports which ones are missing statistics entirely, which have gaps, and which are fine.",
       "fields": {
-        "start_date": { "name": "Start date", "description": "First day to check." },
-        "end_date": { "name": "End date", "description": "Last day to check." }
+        "period": { "name": "Lookback period", "description": "How far back to check, ending now." }
+      }
+    }
+  },
+  "selector": {
+    "lookback_period": {
+      "options": {
+        "today": "Today",
+        "week": "Last week",
+        "month": "Last month",
+        "three_months": "Last 3 months",
+        "six_months": "Last 6 months",
+        "year": "Last 12 months"
       }
     }
   }

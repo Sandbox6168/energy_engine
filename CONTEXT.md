@@ -30,6 +30,9 @@ The priced output of a Simulation — the transformed Energy Profile plus its to
 **Scenario**:
 A named, reusable configuration of inputs to a Simulation — which Data Source/Energy Profile, which Transforms, which Tariff Provider. Built either from actual/historical data or hypothetical overrides; the Simulation doesn't distinguish which.
 
+**Lookback Period**:
+A user-facing preset (Today, Week, Month, 3 Months, 6 Months, 12 Months) offered by the HA integration's actions in place of manual start/end date entry. Always resolves to a concrete date range ending "now" (the last completed Settlement Period) — the core never sees a Lookback Period, only the resolved date range. Distinct from **date range**: date range is the core-facing concept a Data Source/Comparison actually operates on; Lookback Period is the HA-layer convenience that produces one.
+
 **Comparison**:
 Running two or more **independent** Scenarios and presenting their Simulation Results side by side. Each Scenario carries its own Energy Profile source and Transform chain as well as its own Tariff Provider — a Comparison must not assume they share a starting Energy Profile, because a different tariff can legitimately imply different Transforms (e.g. switching to Octopus Go would shift your dishwasher/immersion Transforms to run overnight, which Agile's Scenario wouldn't apply). In v1, with zero real Transforms, every Scenario's Energy Profile happens to be identical regardless of tariff — so v1 Comparisons look like "same usage, different tariff" — but that's a v1 simplification, not the definition. Triggered on-demand for a chosen date range and tariff set, not a continuously recomputed sensor.
 

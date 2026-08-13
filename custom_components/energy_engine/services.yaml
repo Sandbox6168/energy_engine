@@ -4,14 +4,19 @@ run_scenario:
       integration: energy_engine
       domain: sensor
   fields:
-    start_date:
+    period:
       required: true
       selector:
-        date: {}
-    end_date:
-      required: true
-      selector:
-        date: {}
+        select:
+          mode: dropdown
+          translation_key: lookback_period
+          options:
+            - today
+            - week
+            - month
+            - three_months
+            - six_months
+            - year
 
 run_comparison:
   target:
@@ -19,25 +24,35 @@ run_comparison:
       integration: energy_engine
       domain: sensor
   fields:
-    start_date:
+    period:
       required: true
       selector:
-        date: {}
-    end_date:
-      required: true
-      selector:
-        date: {}
+        select:
+          mode: dropdown
+          translation_key: lookback_period
+          options:
+            - today
+            - week
+            - month
+            - three_months
+            - six_months
+            - year
 
 verify_entities:
   target:
     device:
       integration: energy_engine
   fields:
-    start_date:
+    period:
       required: true
       selector:
-        date: {}
-    end_date:
-      required: true
-      selector:
-        date: {}
+        select:
+          mode: dropdown
+          translation_key: lookback_period
+          options:
+            - today
+            - week
+            - month
+            - three_months
+            - six_months
+            - year

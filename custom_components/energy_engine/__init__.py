@@ -17,7 +17,8 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.service import async_extract_config_entry_ids
 
-from .const import ATTR_END_DATE, ATTR_START_DATE, CONF_SCENARIOS, DOMAIN, SERVICE_VERIFY_ENTITIES
+from .const import ATTR_PERIOD, CONF_SCENARIOS, DOMAIN, PERIOD_OPTIONS, SERVICE_VERIFY_ENTITIES
+from .period import resolve_period
 from .verification import async_verify_entities
 
 PLATFORMS = ["sensor"]
@@ -25,8 +26,7 @@ PLATFORMS = ["sensor"]
 VERIFY_ENTITIES_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_DEVICE_ID): vol.All(cv.ensure_list, [cv.string]),
-        vol.Required(ATTR_START_DATE): cv.date,
-        vol.Required(ATTR_END_DATE): cv.date,
+        vol.Required(ATTR_PERIOD): vol.In(PERIOD_OPTIONS),
     }
 )
 
@@ -81,6 +81,5 @@ async def _async_handle_verify_entities(hass: HomeAssistant, call: ServiceCall) 
         raise vol.Invalid("No Energy Engine device found for this target")
 
     scenarios = entry.options.get(CONF_SCENARIOS, [])
-    return await async_verify_entities(
-        hass, entry.data, scenarios, call.data[ATTR_START_DATE], call.data[ATTR_END_DATE]
-    )
+    start_date, end_date = resolve_period(call.data[ATTR_PERIOD])
+    return await async_verify_entities(hass, entry.data, scenarios, start_date, end_date)

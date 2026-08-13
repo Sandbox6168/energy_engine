@@ -6,7 +6,6 @@ Comparison, per CONTEXT.md (Comparison is on-demand, never a standing config).""
 
 from __future__ import annotations
 
-from datetime import date
 from decimal import Decimal
 
 import voluptuous as vol
@@ -20,6 +19,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import device_info
 from .const import (
     ATTR_END_DATE,
+    ATTR_PERIOD,
     ATTR_START_DATE,
     CONF_EXPORT_ENTITY,
     CONF_EXPORT_RATE_ENTITY,
@@ -28,17 +28,18 @@ from .const import (
     CONF_SCENARIO_NAME,
     CONF_SCENARIOS,
     CONF_STANDING_CHARGE_ENTITY,
+    PERIOD_OPTIONS,
     SERVICE_RUN_COMPARISON,
     SERVICE_RUN_SCENARIO,
 )
 from .core import run_simulation
 from .data_source import async_build_data_source
+from .period import resolve_period
 from .tariff_provider import async_build_tariff_provider
 
 RUN_SCHEMA = cv.make_entity_service_schema(
     {
-        vol.Required(ATTR_START_DATE): cv.date,
-        vol.Required(ATTR_END_DATE): cv.date,
+        vol.Required(ATTR_PERIOD): vol.In(PERIOD_OPTIONS),
     }
 )
 
@@ -73,7 +74,8 @@ class ScenarioResultSensor(SensorEntity):
         self._attr_native_value: Decimal | None = None
         self._attr_extra_state_attributes: dict = {}
 
-    async def async_handle_run(self, start_date: date, end_date: date) -> ServiceResponse:
+    async def async_handle_run(self, period: str) -> ServiceResponse:
+        start_date, end_date = resolve_period(period)
         data_source = await async_build_data_source(
             self._hass,
             self._entry.data[CONF_IMPORT_ENTITY],
@@ -105,6 +107,7 @@ class ScenarioResultSensor(SensorEntity):
 
         self._attr_native_value = result.total_cost
         self._attr_extra_state_attributes = {
+            ATTR_PERIOD: period,
             ATTR_START_DATE: start_date.isoformat(),
             ATTR_END_DATE: end_date.isoformat(),
             "precision_caveat": result.precision_caveat,

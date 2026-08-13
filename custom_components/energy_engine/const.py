@@ -22,6 +22,25 @@ SERVICE_VERIFY_ENTITIES = "verify_entities"
 ATTR_START_DATE = "start_date"
 ATTR_END_DATE = "end_date"
 
+# Lookback Period: the HA-only preset that replaces manual start/end date entry on
+# run_scenario/run_comparison/verify_entities - see CONTEXT.md. Always resolves (in
+# period.py) to a concrete [start, end] date range ending "now".
+ATTR_PERIOD = "period"
+PERIOD_TODAY = "today"
+PERIOD_WEEK = "week"
+PERIOD_MONTH = "month"
+PERIOD_THREE_MONTHS = "three_months"
+PERIOD_SIX_MONTHS = "six_months"
+PERIOD_YEAR = "year"
+PERIOD_OPTIONS = [
+    PERIOD_TODAY,
+    PERIOD_WEEK,
+    PERIOD_MONTH,
+    PERIOD_THREE_MONTHS,
+    PERIOD_SIX_MONTHS,
+    PERIOD_YEAR,
+]
+
 # Recorder statistics/short-term-statistics retention boundary this integration relies
 # on for the precision-caveat decision (ADR-0001 / ADR-0002) - kept as a constant so the
 # caveat message and the actual query logic can't drift out of sync.
