@@ -1,0 +1,15 @@
+# Missing-data conditions in run_scenario/run_comparison surface as response fields, not raised exceptions
+
+`run_scenario` and `run_comparison` previously let `MissingStatisticsError`/`MissingHistoryError` (raised deep in `recorder_utils.py` when an entity has no recorded data at all for the requested range) propagate uncaught, so a single missing-data entity hard-failed the whole HA service call. This mirrors `verify_entities`' existing design ([verification.py](../../custom_components/energy_engine/verification.py)): catch these exceptions and report them as data instead.
+
+**Why**: a hard error for what is, from the user's perspective, an expected and common condition (an entity with a data gap) is disproportionate — it gives no partial information and forces a manual `verify_entities` call just to find out what's wrong. `verify_entities` already proved the reporting shape works; there's no reason `run_scenario` needs a different failure mode than its own pre-flight sibling.
+
+**Decisions**:
+- **Scope**: only the two known domain conditions (`MissingStatisticsError`, `MissingHistoryError`) convert to structured response entries. Any other exception (bad config, schema violation, bug) still raises as before — this change does not swallow unexpected failures.
+- **Shape**: the response gains `errors: []` and `warnings: []`, each entry `{entity_id, role, message}` — the same fields as `verify_entities`' `EntityVerification`, minus its `status` field (severity is which list the entry is in). The existing `precision_caveat` field is retired; a precision caveat is now just another `warnings` entry.
+- **Evaluation**: collect-all, not fail-fast — every entity/period is checked and every problem reported in one response, not just the first.
+- **Numeric fields**: if `errors` is non-empty, `total_cost`/`import_kwh`/`export_kwh` are omitted (never a silently-partial number, per the Simulation Result invariant in [CONTEXT.md](../../CONTEXT.md)). Warnings alone don't block computing them.
+- **run_comparison**: same change, but `errors`/`warnings` are scoped per-scenario, not top-level — one scenario's data gap shouldn't obscure that another scenario in the same comparison is fine.
+- **Standing charge carve-out**: unlike other roles, a standing-charge entity with *zero* recorded history (not merely a gap — genuine day-level gaps already fall back to the last known state, unchanged) now falls back to that entity's current live state (`hass.states.get`) as a flat value across the whole range, reported as a **warning**, not an error. If the live state is itself missing/unknown/unavailable, there's nothing to fall back to and it remains an **error**. This is standing-charge-specific, not a general policy — no other role has an equivalent single-value fallback.
+
+**Kept as-is**: `verify_entities` remains a separate service. It's cheaper (skips running the Simulation) and lets a user validate a Scenario/Data Source configuration against an arbitrary date range without needing a fully-formed run.
