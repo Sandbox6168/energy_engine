@@ -35,6 +35,7 @@ from .const import (
 from .core import run_simulation
 from .data_source import async_build_data_source
 from .period import resolve_period
+from .run_report import prefixed
 from .tariff_provider import async_build_tariff_provider
 
 RUN_SCHEMA = cv.make_entity_service_schema(
@@ -75,15 +76,20 @@ class ScenarioResultSensor(SensorEntity):
         self._attr_extra_state_attributes: dict = {}
 
     async def async_handle_run(self, period: str) -> ServiceResponse:
+        """Per ADR-0003: missing-data conditions are reported as `errors`/`warnings`
+        response fields, never raised. `total_cost`/`import_kwh`/`export_kwh` are only
+        present when `errors` is empty - a partial total is never silently returned."""
         start_date, end_date = resolve_period(period)
-        data_source = await async_build_data_source(
+        scenario_name = self._scenario[CONF_SCENARIO_NAME]
+
+        data_source, ds_errors, ds_warnings = await async_build_data_source(
             self._hass,
             self._entry.data[CONF_IMPORT_ENTITY],
             self._entry.data[CONF_EXPORT_ENTITY],
             start_date,
             end_date,
         )
-        tariff_provider = await async_build_tariff_provider(
+        tariff_provider, tp_errors, tp_warnings = await async_build_tariff_provider(
             self._hass,
             self._scenario[CONF_IMPORT_RATE_ENTITY],
             self._scenario[CONF_EXPORT_RATE_ENTITY],
@@ -92,15 +98,19 @@ class ScenarioResultSensor(SensorEntity):
             end_date,
         )
 
-        profile = data_source.get_energy_profile(start_date, end_date)
-        caveats = [c for c in (data_source.precision_caveat, tariff_provider.precision_caveat) if c]
-
-        result = run_simulation(
-            profile,
-            transforms=(),
-            tariff_provider=tariff_provider,
-            precision_caveat=" ".join(caveats) or None,
+        errors = prefixed(ds_errors, "data_source.") + prefixed(tp_errors, f"scenario.{scenario_name}.")
+        warnings = prefixed(ds_warnings, "data_source.") + prefixed(
+            tp_warnings, f"scenario.{scenario_name}."
         )
+
+        if errors:
+            return {
+                "errors": [issue.as_dict() for issue in errors],
+                "warnings": [issue.as_dict() for issue in warnings],
+            }
+
+        profile = data_source.get_energy_profile(start_date, end_date)
+        result = run_simulation(profile, transforms=(), tariff_provider=tariff_provider)
 
         import_kwh = sum(value.import_kwh for value in result.profile.values.values())
         export_kwh = sum(value.export_kwh for value in result.profile.values.values())
@@ -110,7 +120,7 @@ class ScenarioResultSensor(SensorEntity):
             ATTR_PERIOD: period,
             ATTR_START_DATE: start_date.isoformat(),
             ATTR_END_DATE: end_date.isoformat(),
-            "precision_caveat": result.precision_caveat,
+            "warnings": [issue.as_dict() for issue in warnings],
             "import_kwh": import_kwh,
             "export_kwh": export_kwh,
         }
@@ -118,7 +128,7 @@ class ScenarioResultSensor(SensorEntity):
 
         return {
             "total_cost": str(result.total_cost),
-            "precision_caveat": result.precision_caveat,
+            "warnings": [issue.as_dict() for issue in warnings],
             "import_kwh": import_kwh,
             "export_kwh": export_kwh,
         }
