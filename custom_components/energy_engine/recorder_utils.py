@@ -10,7 +10,7 @@ before relying on this in production.
 from __future__ import annotations
 
 import functools
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 
@@ -20,6 +20,7 @@ from homeassistant.components.recorder.statistics import (
     statistics_during_period,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from .const import SHORT_TERM_STATS_RETENTION_DAYS
 from .core import SettlementPeriod
@@ -46,6 +47,17 @@ class MissingHistoryError(Exception):
     """Raised when an entity has no recorded state history at all (see
     `async_fetch_daily_value_from_history`) - the history equivalent of
     `MissingStatisticsError`, for values resolved from plain state history."""
+
+
+def local_day_start(day: date) -> datetime:
+    """Convert a local calendar date to the UTC instant its midnight falls at.
+
+    Settlement Periods are UK market-aligned to local clock time (see CONTEXT.md), not
+    UTC - combining a local date directly with UTC midnight (`datetime.combine(day,
+    time.min, tzinfo=UTC)`) would silently shift "today" by the local UTC offset (an
+    hour early/late during BST).
+    """
+    return dt_util.as_utc(dt_util.start_of_local_day(day))
 
 
 def clamp_to_completed_period(end_dt: datetime) -> datetime:
@@ -121,8 +133,8 @@ async def async_fetch_daily_value_from_history(
     per CONTEXT.md, a day with genuinely no history at all raises `MissingHistoryError`
     instead of silently degrading.
     """
-    start_dt = datetime.combine(start, time.min, tzinfo=UTC)
-    end_dt = datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
+    start_dt = local_day_start(start)
+    end_dt = local_day_start(end + timedelta(days=1))
 
     job = functools.partial(
         history.state_changes_during_period,
@@ -150,7 +162,7 @@ async def async_fetch_daily_value_from_history(
 
     day = start
     while day < end:
-        day_start = datetime.combine(day, time.min, tzinfo=UTC)
+        day_start = local_day_start(day)
         at_or_before = [value for changed, value in numeric_states if changed <= day_start]
         if at_or_before:
             values[day] = at_or_before[-1]

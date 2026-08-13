@@ -3,7 +3,7 @@ recorder statistics (ADR-0002) rather than polling a device or API directly."""
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, timedelta
 
 from homeassistant.core import HomeAssistant
 
@@ -13,6 +13,7 @@ from .recorder_utils import (
     StatKind,
     async_fetch_settlement_values,
     clamp_to_completed_period,
+    local_day_start,
 )
 from .run_report import Issue
 
@@ -41,10 +42,8 @@ async def async_build_data_source(
     """Returns (data_source, errors, warnings). `data_source` is None if `errors` is
     non-empty - per ADR-0003, a missing-data entity is never silently worked around
     for the Data Source's own usage figures."""
-    start_dt = datetime.combine(start, time.min, tzinfo=UTC)
-    end_dt = clamp_to_completed_period(
-        datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
-    )
+    start_dt = local_day_start(start)
+    end_dt = clamp_to_completed_period(local_day_start(end + timedelta(days=1)))
 
     errors: list[Issue] = []
     warnings: list[Issue] = []

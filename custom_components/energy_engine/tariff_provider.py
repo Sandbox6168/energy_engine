@@ -3,7 +3,7 @@ standing charge from HA's own recorder statistics rather than calling Octopus's 
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from homeassistant.core import HomeAssistant
@@ -16,6 +16,7 @@ from .recorder_utils import (
     async_fetch_daily_value_from_history,
     async_fetch_settlement_values,
     clamp_to_completed_period,
+    local_day_start,
 )
 from .run_report import Issue
 
@@ -55,10 +56,8 @@ async def async_build_tariff_provider(
     `errors` is non-empty (ADR-0003) - except the standing charge, which falls back
     to the entity's current live state (and a warning) rather than erroring, since a
     single flat value is an acceptable stand-in for "no history at all"."""
-    start_dt = datetime.combine(start, time.min, tzinfo=UTC)
-    end_dt = clamp_to_completed_period(
-        datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
-    )
+    start_dt = local_day_start(start)
+    end_dt = clamp_to_completed_period(local_day_start(end + timedelta(days=1)))
 
     errors: list[Issue] = []
     warnings: list[Issue] = []

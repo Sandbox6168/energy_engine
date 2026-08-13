@@ -10,7 +10,7 @@ before relying on this in production (see recorder_utils.py's equivalent caveat)
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, timedelta
 
 from homeassistant.core import HomeAssistant, ServiceResponse
 from homeassistant.helpers import entity_registry as er
@@ -30,6 +30,8 @@ from .recorder_utils import (
     async_entity_supports_statistics,
     async_fetch_daily_value_from_history,
     async_fetch_settlement_values,
+    clamp_to_completed_period,
+    local_day_start,
 )
 
 
@@ -131,8 +133,8 @@ async def _verify_one(
         )
         return EntityVerification(entity_id, role, "error", message, suggestion)
 
-    start_dt = datetime.combine(start, time.min, tzinfo=UTC)
-    end_dt = datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
+    start_dt = local_day_start(start)
+    end_dt = clamp_to_completed_period(local_day_start(end + timedelta(days=1)))
     try:
         _, degraded = await async_fetch_settlement_values(hass, entity_id, start_dt, end_dt, kind)
     except MissingStatisticsError as err:
