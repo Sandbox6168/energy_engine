@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from energy_engine import EnergyProfile, SettlementPeriod, SettlementValue, TariffProvider
+from core import EnergyProfile, SettlementPeriod, SettlementValue, TariffProvider
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from energy_engine import SettlementPeriod
+from core import SettlementPeriod
 
 
 def test_end_is_thirty_minutes_after_start():

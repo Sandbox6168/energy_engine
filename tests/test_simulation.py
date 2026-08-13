@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from energy_engine import EnergyProfile, SettlementValue, run_simulation
+from core import EnergyProfile, SettlementValue, run_simulation
 
 
 def test_no_transforms_is_a_straight_replay(two_period_profile, flat_tariff_provider):

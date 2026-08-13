@@ -1,7 +1,8 @@
 """Energy Engine: prices energy usage against UK electricity tariffs.
 
-This integration is a thin HA-facing shell around the vendored core engine in
-./core (see ADR-0002 for why it's vendored rather than a PyPI/git requirement).
+This integration is a thin HA-facing shell around the core engine in ./core,
+which lives here (not a separate package) because HACS only ever checks out
+custom_components/energy_engine/ into a user's Home Assistant config.
 """
 
 from __future__ import annotations
