@@ -3,10 +3,11 @@ standing charge from HA's own recorder statistics rather than calling Octopus's 
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from .core import SettlementPeriod
 from .recorder_utils import (
@@ -119,10 +120,32 @@ async def async_build_tariff_provider(
         )
 
     return (
-        HassTariffProvider(_to_decimal(import_values), _to_decimal(export_values), standing_values),
+        HassTariffProvider(
+            _to_decimal(import_values),
+            _to_decimal(export_values),
+            _rekey_standing_charges_to_utc_date(standing_values, start_dt, end_dt),
+        ),
         errors,
         warnings,
     )
+
+
+def _rekey_standing_charges_to_utc_date(
+    standing_values: dict[date, Decimal], start_dt: datetime, end_dt: datetime
+) -> dict[date, Decimal]:
+    """Re-key from local calendar date (what `async_fetch_daily_value_from_history`
+    resolves) to the UTC calendar date each Settlement Period's start falls on - what
+    the core's `_price()` actually looks up via `period.start.date()`, since the core
+    is timezone-naive by design. The two only diverge for a day's first/last periods
+    when the local UTC offset isn't zero (BST).
+    """
+    by_utc_date: dict[date, Decimal] = {}
+    period_start = start_dt
+    while period_start < end_dt:
+        local_date = dt_util.as_local(period_start).date()
+        by_utc_date[period_start.date()] = standing_values[local_date]
+        period_start += timedelta(minutes=30)
+    return by_utc_date
 
 
 def _fallback_standing_charge(
