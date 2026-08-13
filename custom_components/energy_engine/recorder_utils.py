@@ -9,10 +9,12 @@ before relying on this in production.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+import functools
+from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 
-from homeassistant.components.recorder import get_instance
+from homeassistant.components.recorder import get_instance, history
 from homeassistant.components.recorder.statistics import (
     list_statistic_ids,
     statistics_during_period,
@@ -24,10 +26,12 @@ from .core import SettlementPeriod
 
 
 class StatKind(Enum):
-    """How to reduce a bucket of statistics rows down to one Settlement Period value."""
+    """How to reduce a bucket of statistics rows down to one Settlement Period value,
+    or (HISTORY) how to resolve a per-day value from plain state history instead."""
 
     CUMULATIVE = "cumulative"  # energy sensors (total_increasing): delta between sums
-    INSTANTANEOUS = "instantaneous"  # rate / standing-charge sensors: mean of the bucket
+    INSTANTANEOUS = "instantaneous"  # rate sensors: mean of the bucket
+    HISTORY = "history"  # rarely-changing values (standing charge): state-at-day-start
 
 
 class MissingStatisticsError(Exception):
@@ -36,6 +40,12 @@ class MissingStatisticsError(Exception):
     Per CONTEXT.md: a precision caveat is only for genuinely coarser data (see
     `degraded` below) - a gap with no data at all must fail the run, not degrade it.
     """
+
+
+class MissingHistoryError(Exception):
+    """Raised when an entity has no recorded state history at all (see
+    `async_fetch_daily_value_from_history`) - the history equivalent of
+    `MissingStatisticsError`, for values resolved from plain state history."""
 
 
 async def async_fetch_settlement_values(
@@ -77,6 +87,62 @@ async def async_fetch_settlement_values(
 
         values[period] = value
         period_start += timedelta(minutes=30)
+
+    return values, degraded
+
+
+async def async_fetch_daily_value_from_history(
+    hass: HomeAssistant, entity_id: str, start: date, end: date
+) -> tuple[dict[date, Decimal], bool]:
+    """Resolve `entity_id`'s plain state history to one value per day in [start, end).
+
+    For values that only change rarely (e.g. a standing charge, which only changes
+    when the tariff changes) statistics are the wrong tool - they need bucket-mean/sum
+    reduction, this needs "what was the state at the start of this day". Uses HA's raw
+    state history instead, which every entity has regardless of `state_class`.
+
+    Returns (values_by_day, degraded). `degraded` is True if a day's state had to fall
+    back to the earliest known state because history doesn't reach back that far -
+    per CONTEXT.md, a day with genuinely no history at all raises `MissingHistoryError`
+    instead of silently degrading.
+    """
+    start_dt = datetime.combine(start, time.min, tzinfo=UTC)
+    end_dt = datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
+
+    job = functools.partial(
+        history.state_changes_during_period,
+        hass,
+        start_dt,
+        end_dt,
+        entity_id,
+        include_start_time_state=True,
+        no_attributes=True,
+    )
+    raw = await get_instance(hass).async_add_executor_job(job)
+
+    numeric_states: list[tuple[datetime, Decimal]] = []
+    for state in raw.get(entity_id, []):
+        try:
+            numeric_states.append((state.last_changed, Decimal(state.state)))
+        except (InvalidOperation, TypeError):
+            continue
+
+    if not numeric_states:
+        raise MissingHistoryError(f"No recorded state history at all for {entity_id}")
+
+    values: dict[date, Decimal] = {}
+    degraded = False
+
+    day = start
+    while day < end:
+        day_start = datetime.combine(day, time.min, tzinfo=UTC)
+        at_or_before = [value for changed, value in numeric_states if changed <= day_start]
+        if at_or_before:
+            values[day] = at_or_before[-1]
+        else:
+            values[day] = numeric_states[0][1]
+            degraded = True
+        day += timedelta(days=1)
 
     return values, degraded
 

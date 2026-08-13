@@ -9,7 +9,11 @@ from decimal import Decimal
 from homeassistant.core import HomeAssistant
 
 from .core import SettlementPeriod
-from .recorder_utils import StatKind, async_fetch_settlement_values
+from .recorder_utils import (
+    StatKind,
+    async_fetch_daily_value_from_history,
+    async_fetch_settlement_values,
+)
 
 
 class HassTariffProvider:
@@ -19,7 +23,7 @@ class HassTariffProvider:
         self,
         import_rates: dict[SettlementPeriod, Decimal],
         export_rates: dict[SettlementPeriod, Decimal],
-        standing_charges: dict[SettlementPeriod, Decimal],
+        standing_charges: dict[date, Decimal],
         precision_caveat: str | None,
     ) -> None:
         self._import_rates = import_rates
@@ -33,8 +37,8 @@ class HassTariffProvider:
     def export_rate(self, period: SettlementPeriod) -> Decimal:
         return self._export_rates[period]
 
-    def standing_charge(self, period: SettlementPeriod) -> Decimal:
-        return self._standing_charges[period]
+    def standing_charge(self, day: date) -> Decimal:
+        return self._standing_charges[day]
 
 
 async def async_build_tariff_provider(
@@ -54,22 +58,27 @@ async def async_build_tariff_provider(
     export_values, export_degraded = await async_fetch_settlement_values(
         hass, export_rate_entity_id, start_dt, end_dt, StatKind.INSTANTANEOUS
     )
-    standing_values, standing_degraded = await async_fetch_settlement_values(
-        hass, standing_charge_entity_id, start_dt, end_dt, StatKind.INSTANTANEOUS
+    standing_values, standing_degraded = await async_fetch_daily_value_from_history(
+        hass, standing_charge_entity_id, start, end
     )
 
-    caveat = None
-    if import_degraded or export_degraded or standing_degraded:
-        caveat = (
+    caveats = []
+    if import_degraded or export_degraded:
+        caveats.append(
             "Rates priced from hourly-averaged data for Settlement Periods older than "
             "HA's short-term statistics retention window, not true half-hourly rates."
+        )
+    if standing_degraded:
+        caveats.append(
+            f"Standing charge for some days fell back to {standing_charge_entity_id}'s "
+            "earliest known state because its history doesn't reach that far back."
         )
 
     return HassTariffProvider(
         _to_decimal(import_values),
         _to_decimal(export_values),
-        _to_decimal(standing_values),
-        caveat,
+        standing_values,
+        " ".join(caveats) or None,
     )
 
 

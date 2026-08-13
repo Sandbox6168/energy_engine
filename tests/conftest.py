@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -25,7 +25,7 @@ def flat_tariff_provider() -> TariffProvider:
         def export_rate(self, period: SettlementPeriod) -> Decimal:
             return Decimal("0.10")
 
-        def standing_charge(self, period: SettlementPeriod) -> Decimal:
+        def standing_charge(self, day: date) -> Decimal:
             return Decimal("0")
 
     return FlatTariffProvider()

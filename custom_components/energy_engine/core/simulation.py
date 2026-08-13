@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from .plugins import TariffProvider, Transform
@@ -37,8 +38,12 @@ def run_simulation(
 
 def _price(profile: EnergyProfile, tariff_provider: TariffProvider) -> Decimal:
     total = Decimal(0)
+    charged_days: set[date] = set()
     for period, value in profile.values.items():
         total += Decimal(str(value.import_kwh)) * tariff_provider.import_rate(period)
         total -= Decimal(str(value.export_kwh)) * tariff_provider.export_rate(period)
-        total += tariff_provider.standing_charge(period)
+        day = period.start.date()
+        if day not in charged_days:
+            total += tariff_provider.standing_charge(day)
+            charged_days.add(day)
     return total

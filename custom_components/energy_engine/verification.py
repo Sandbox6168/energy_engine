@@ -24,9 +24,11 @@ from .const import (
     CONF_STANDING_CHARGE_ENTITY,
 )
 from .recorder_utils import (
+    MissingHistoryError,
     MissingStatisticsError,
     StatKind,
     async_entity_supports_statistics,
+    async_fetch_daily_value_from_history,
     async_fetch_settlement_values,
 )
 
@@ -53,9 +55,6 @@ async def async_verify_entities(
     """Check every entity `entry_data`'s Data Source and `scenarios`' Tariff Providers
     rely on for [start, end), reusing the same recorder logic run_scenario/run_comparison
     would use - but reporting every entity's result instead of raising on the first one."""
-    start_dt = datetime.combine(start, time.min, tzinfo=UTC)
-    end_dt = datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
-
     checks: list[tuple[str, str, StatKind]] = [
         (entry_data[CONF_IMPORT_ENTITY], "data_source.import", StatKind.CUMULATIVE),
         (entry_data[CONF_EXPORT_ENTITY], "data_source.export", StatKind.CUMULATIVE),
@@ -80,12 +79,12 @@ async def async_verify_entities(
             (
                 scenario[CONF_STANDING_CHARGE_ENTITY],
                 f"scenario.{name}.standing_charge",
-                StatKind.INSTANTANEOUS,
+                StatKind.HISTORY,
             )
         )
 
     results = [
-        await _verify_one(hass, entity_id, role, kind, start_dt, end_dt)
+        await _verify_one(hass, entity_id, role, kind, start, end)
         for entity_id, role, kind in checks
     ]
 
@@ -100,9 +99,28 @@ async def _verify_one(
     entity_id: str,
     role: str,
     kind: StatKind,
-    start_dt: datetime,
-    end_dt: datetime,
+    start: date,
+    end: date,
 ) -> EntityVerification:
+    if kind is StatKind.HISTORY:
+        try:
+            _, degraded = await async_fetch_daily_value_from_history(hass, entity_id, start, end)
+        except MissingHistoryError as err:
+            return EntityVerification(entity_id, role, "error", str(err))
+
+        if degraded:
+            return EntityVerification(
+                entity_id,
+                role,
+                "warning",
+                f"{entity_id}'s history doesn't reach back to the start of this range; "
+                "earlier days fall back to its earliest known state.",
+            )
+
+        return EntityVerification(
+            entity_id, role, "ok", f"{entity_id} has the data this range needs."
+        )
+
     if not await async_entity_supports_statistics(hass, entity_id, kind):
         suggestion = await _suggest_alternative(hass, entity_id, kind)
         message = f"{entity_id} does not record the long-term statistics this integration needs."
@@ -113,6 +131,8 @@ async def _verify_one(
         )
         return EntityVerification(entity_id, role, "error", message, suggestion)
 
+    start_dt = datetime.combine(start, time.min, tzinfo=UTC)
+    end_dt = datetime.combine(end, time.min, tzinfo=UTC) + timedelta(days=1)
     try:
         _, degraded = await async_fetch_settlement_values(hass, entity_id, start_dt, end_dt, kind)
     except MissingStatisticsError as err:

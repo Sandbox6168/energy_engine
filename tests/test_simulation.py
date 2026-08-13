@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from core import EnergyProfile, SettlementValue, run_simulation
@@ -33,3 +34,28 @@ def test_transform_output_feeds_into_pricing(make_period, flat_tariff_provider):
     result = run_simulation(profile, transforms=[DoubleImport()], tariff_provider=flat_tariff_provider)
 
     assert result.total_cost == Decimal("0.50")
+
+
+def test_standing_charge_is_applied_once_per_day_not_per_period(make_period):
+    class StandingChargeProvider:
+        def import_rate(self, period):
+            return Decimal("0")
+
+        def export_rate(self, period):
+            return Decimal("0")
+
+        def standing_charge(self, day: date) -> Decimal:
+            return Decimal("0.50")
+
+    profile = EnergyProfile(
+        {
+            make_period(0, day=1): SettlementValue(import_kwh=0.0, export_kwh=0.0),
+            make_period(0, 30, day=1): SettlementValue(import_kwh=0.0, export_kwh=0.0),
+            make_period(0, day=2): SettlementValue(import_kwh=0.0, export_kwh=0.0),
+        }
+    )
+
+    result = run_simulation(profile, transforms=[], tariff_provider=StandingChargeProvider())
+
+    # Two distinct days at 0.50/day, not three periods at 0.50/period.
+    assert result.total_cost == Decimal("1.00")
